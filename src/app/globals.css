@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #F4F6F9;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  @page { margin: 0.5in; }
+  .employee-chart-scroll {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  .pie-card {
+    overflow: visible !important;
+    break-inside: avoid !important;
+  }
+}

@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: botdoc
+      POSTGRES_PASSWORD: botdoc
+      POSTGRES_DB: botdoc_lite_reports
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No host port mapping — app reaches DB via internal Docker network (db:5432).
+    # Add "127.0.0.1:5432:5432" here temporarily if you need local psql access.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botdoc -d botdoc_lite_reports"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://botdoc:botdoc@db:5432/botdoc_lite_reports
+      NODE_ENV: production
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
