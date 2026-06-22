@@ -14,6 +14,8 @@ export async function runMigrations(migrationsDir: string): Promise<void> {
   const sql = postgres(url);
 
   try {
+    await sql`CREATE SCHEMA IF NOT EXISTS botdoc`;
+
     await sql`
       CREATE TABLE IF NOT EXISTS botdoc.__migrations (
         id         serial PRIMARY KEY,
