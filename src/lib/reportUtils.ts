@@ -23,9 +23,12 @@ export function last30Days(): { start: Date; end: Date } {
   return { start, end };
 }
 
-/** Format a Date as YYYY-MM-DD for use in date inputs and URL params. */
+/** Format a Date as YYYY-MM-DD for use in date inputs and URL params. Uses local date to avoid UTC-offset day shifts. */
 export function toDateParam(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -37,13 +40,12 @@ export function parseDateParam(value: string | undefined | null): Date | null {
   if (!value) return null;
   // Must be exactly YYYY-MM-DD
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const d = new Date(value);
+  // Parse as LOCAL midnight to avoid UTC-offset display bugs (e.g. "May 1" showing as "Apr 30").
+  const [year, month, day] = value.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
   if (isNaN(d.getTime())) return null;
-  // Reject dates before 2020 or more than 1 day in the future
-  const minDate = new Date('2020-01-01');
-  const maxDate = new Date();
-  maxDate.setDate(maxDate.getDate() + 1);
-  if (d < minDate || d > maxDate) return null;
+  // Only reject clearly invalid dates (before 2020)
+  if (d < new Date(2020, 0, 1)) return null;
   return d;
 }
 

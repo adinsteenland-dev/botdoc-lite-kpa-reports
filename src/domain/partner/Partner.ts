@@ -6,7 +6,8 @@
 export interface DataFilter {
   userIds?: number[];
   storeIds?: string[];
-  titleExcludes?: string[];
+  titleIncludes?: string[];  // LIKE patterns — store name must match at least one
+  titleExcludes?: string[];  // LIKE patterns — store name must not match any
 }
 
 export interface Partner {

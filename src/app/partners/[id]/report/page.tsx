@@ -45,7 +45,9 @@ export default async function PartnerReportPage({
   // Resolve date range
   const defaults = last30Days();
   const start = parseDateParam(fromParam) ?? defaults.start;
-  const end = parseDateParam(toParam) ?? defaults.end;
+  const endRaw = parseDateParam(toParam);
+  if (endRaw) endRaw.setHours(23, 59, 59, 999); // include the full end day
+  const end = endRaw ?? defaults.end;
   const fromStr = toDateParam(start);
   const toStr = toDateParam(end);
 
@@ -54,8 +56,10 @@ export default async function PartnerReportPage({
 
   if (partner.dataFilter) {
     try {
+      console.log(`[Report] querying ${start.toISOString()} → ${end.toISOString()} (filter: ${JSON.stringify(partner.dataFilter)})`);
       const fabric = new LiteMetricsProvider();
       const rawMetrics = await fabric.fetchMetrics(partner.dataFilter, start, end);
+      console.log(`[Report] returned ${rawMetrics.length} locations`);
 
       reportData = {
         customerName: partner.name,
@@ -130,6 +134,7 @@ export default async function PartnerReportPage({
         <main style={{ flex: 1, minWidth: 0, overflowX: 'auto' }}>
           {reportData ? (
             <Dashboard
+              key={`${fromStr}-${toStr}`}
               data={reportData}
               initialFrom={fromStr}
               initialTo={toStr}

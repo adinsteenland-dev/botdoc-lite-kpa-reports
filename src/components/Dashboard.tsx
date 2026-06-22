@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart } from './BarChart';
 import { formatKPI, sumLocations } from '@/lib/parseCSV';
 import type { ReportData, TrendData } from '@/lib/parseCSV';
 import { TrendsSection } from './TrendsSection';
@@ -216,11 +215,12 @@ export function Dashboard({
       {/* ZONE 2: KPI CARDS */}
       <div style={{ padding: '24px 32px 8px' }}>
         <SectionEyebrow>Key Performance Indicators</SectionEyebrow>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <KpiCard label="Total Sessions" value={formatKPI(totals.scans)} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+          <KpiCard label="Sessions Generated" value={formatKPI(totals.scans)} />
           <KpiCard label="Session Opened" value={formatKPI(totals.leads)} />
-          <KpiCard label="ID Verified" value={formatKPI(totals.idVerify)} />
-          <KpiCard label="DL Completed" value={formatKPI(totals.dlCompleted)} />
+          <KpiCard label="Pull Files" value={formatKPI(totals.pullFiles)} />
+          <KpiCard label="Employee Initiated" value={formatKPI(totals.employeeInitiated)} />
+          <KpiCard label="Customer Self-Service" value={formatKPI(totals.customerSelfService)} />
         </div>
       </div>
 
@@ -228,14 +228,14 @@ export function Dashboard({
       {trendData && <TrendsSection trendData={trendData} />}
 
       {/* ZONE 4: Location table + bar chart */}
-      <div style={{ padding: '20px 32px 32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: 20 }}>
-        {/* LEFT: Location Table */}
-        <Card style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '20px 32px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* TOP: Location Table */}
+        <Card style={{ overflow: 'auto' }}>
           <CardHeader title="Performance by Location" />
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: color.navy }}>
-                {['Location', 'Sessions', 'Session Opened', 'Pull Files', 'ID Verified', 'DL Completed'].map((h, i) => (
+                {['Location', 'Sessions Generated', 'Session Opened', 'Pull Files', 'Employee Init.', 'Self-Service'].map((h, i) => (
                   <th
                     key={h}
                     style={{
@@ -256,7 +256,7 @@ export function Dashboard({
             <tbody>
               {filtered.map((loc, i) => (
                 <tr
-                  key={loc.name}
+                  key={`${i}-${loc.name}`}
                   style={{
                     background: i % 2 === 0 ? color.surface : color.bg,
                     borderLeft: i === 0 ? `4px solid ${color.orange}` : undefined,
@@ -289,7 +289,7 @@ export function Dashboard({
                     </span>
                     {loc.name}
                   </td>
-                  {[loc.scans, loc.leads, loc.pullFiles, loc.idVerify, loc.dlCompleted].map((val, j) => (
+                  {[loc.scans, loc.leads, loc.pullFiles, loc.employeeInitiated, loc.customerSelfService].map((val, j) => (
                     <td
                       key={j}
                       style={{
@@ -308,11 +308,6 @@ export function Dashboard({
           </table>
         </Card>
 
-        {/* RIGHT: Bar Chart */}
-        <Card style={{ overflow: 'hidden' }}>
-          <CardHeader title="Scans by Location" />
-          <BarChart locations={filtered} />
-        </Card>
       </div>
 
       {/* Eyebrow label shown under KPI section as context */}

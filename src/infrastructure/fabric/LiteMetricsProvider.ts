@@ -31,6 +31,8 @@ interface LiteRow {
   idVerify: number;
   dlCompleted: number;
   sessionOpened: number;
+  employeeInitiated: number;
+  customerSelfService: number;
 }
 
 export class LiteMetricsProvider implements MetricsProvider {
@@ -61,6 +63,13 @@ export class LiteMetricsProvider implements MetricsProvider {
       filter.storeIds.forEach((id, i) => req.input(`sid${i}`, sql.NVarChar(64), id));
     }
 
+    // Title inclusions (LIKE patterns — store name must match at least one)
+    if (filter.titleIncludes && filter.titleIncludes.length > 0) {
+      const orClauses = filter.titleIncludes.map((_, i) => `ak.name LIKE @tinc${i}`);
+      extraClauses.push(`(${orClauses.join(' OR ')})`);
+      filter.titleIncludes.forEach((pat, i) => req.input(`tinc${i}`, sql.NVarChar(256), pat));
+    }
+
     // Title exclusions (NOT LIKE patterns on store name)
     if (filter.titleExcludes && filter.titleExcludes.length > 0) {
       filter.titleExcludes.forEach((pat, i) => {
@@ -73,70 +82,86 @@ export class LiteMetricsProvider implements MetricsProvider {
       extraClauses.length > 0 ? '\n  AND ' + extraClauses.join('\n  AND ') : '';
 
     const queryText = `
-      SELECT
-        ak.id                                                       AS storeId,
-        ak.name                                                     AS storeName,
-        COUNT(c.id)                                                 AS scans,
-
-        SUM(pf_agg.cnt)                                             AS pullFiles,
-        SUM(iv_agg.cnt)                                             AS idVerify,
-
-        /* DL Completed — sessions where container_state = 'complete'
-           (onboarding callback URLs are classified as 'onboarding', not 'complete') */
-        COUNT(CASE WHEN
-          CASE
-            WHEN (c.callback_url LIKE '%obwh%' OR c.callback_url LIKE '%onboarding%')
-            THEN 'onboarding'
-            ELSE cs.[value]
-          END = 'complete'
-        THEN 1 END)                                                 AS dlCompleted,
-
-        SUM(so_agg.cnt)                                             AS sessionOpened
-
-      FROM dbo.module_container_container c
-      LEFT JOIN dbo.module_container_containermetadata cs
-        ON cs.container_id = c.id
-        AND cs.[key] = 'state'
-      INNER JOIN dbo.mod_api_key_apikey ak
-        ON c.apikey_id = ak.id
-
-      /* CROSS APPLY: compute per-session counts as columns so SUM() can aggregate them.
-         SQL Server does not allow SUM(correlated subquery) directly. */
-      CROSS APPLY (
-        SELECT COUNT(pf.id) AS cnt
-        FROM dbo.module_container_pull_pullfile pf
-        INNER JOIN dbo.module_container_pull_pull pp ON pf.pull_id = pp.feature_ptr_id
-        INNER JOIN dbo.module_container_feature mf ON pp.feature_ptr_id = mf.id
-        WHERE mf.container_id = c.id
-      ) AS pf_agg
-      CROSS APPLY (
+      /* CTE: aggregate all session metrics for the date window.
+         Keeping this separate lets the outer query LEFT JOIN from stores → sessions,
+         so stores with zero activity in the period still appear in results. */
+      WITH session_agg AS (
         SELECT
-          (SELECT COUNT(iv.feature_ptr_id)
-           FROM dbo.module_container_idverify_service_idverify iv
-           INNER JOIN dbo.module_container_feature f ON f.id = iv.feature_ptr_id
-           WHERE f.container_id = c.id AND f.state = 'complete')
-          +
-          (SELECT COUNT(mw.feature_ptr_id)
-           FROM dbo.module_container_mworkflow_mworkflow mw
-           INNER JOIN dbo.module_container_feature f ON f.id = mw.feature_ptr_id
-           WHERE f.container_id = c.id AND f.state = 'complete'
-           AND mw.workflow_id = '69f0c96a6ad82ade356a2f0c')
-          AS cnt
-      ) AS iv_agg
-      CROSS APPLY (
-        SELECT COUNT(cb.id) AS cnt
-        FROM dbo.module_container_callbackcall cb
-        WHERE cb.callback_type = 'session_opened'
-          AND cb.created >= c.created
-          AND cb.container_id = c.id
-      ) AS so_agg
-      WHERE
-        c.created >= @periodStart
-        AND c.created < @periodEnd
-        AND c.callback_url <> ''
-        AND c.id > 10160412${extraWhere}
-      GROUP BY ak.id, ak.name
-      ORDER BY COUNT(c.id) DESC
+          c.apikey_id,
+          COUNT(c.id)                                                 AS scans,
+          SUM(pf_agg.cnt)                                             AS pullFiles,
+          SUM(iv_agg.cnt)                                             AS idVerify,
+          COUNT(CASE WHEN
+            CASE
+              WHEN (c.callback_url LIKE '%obwh%' OR c.callback_url LIKE '%onboarding%')
+              THEN 'onboarding'
+              ELSE cs.[value]
+            END = 'complete'
+          THEN 1 END)                                                 AS dlCompleted,
+          SUM(so_agg.cnt)                                             AS sessionOpened,
+          COUNT(CASE WHEN rdi_agg.val <> '' THEN 1 END)               AS employeeInitiated,
+          COUNT(CASE WHEN rdi_agg.val = '' THEN 1 END)                AS customerSelfService
+        FROM dbo.module_container_container c
+        LEFT JOIN dbo.module_container_containermetadata cs
+          ON cs.container_id = c.id AND cs.[key] = 'state'
+        CROSS APPLY (
+          SELECT COUNT(pf.id) AS cnt
+          FROM dbo.module_container_pull_pullfile pf
+          INNER JOIN dbo.module_container_pull_pull pp ON pf.pull_id = pp.feature_ptr_id
+          INNER JOIN dbo.module_container_feature mf ON pp.feature_ptr_id = mf.id
+          WHERE mf.container_id = c.id
+        ) AS pf_agg
+        CROSS APPLY (
+          SELECT
+            (SELECT COUNT(iv.feature_ptr_id)
+             FROM dbo.module_container_idverify_service_idverify iv
+             INNER JOIN dbo.module_container_feature f ON f.id = iv.feature_ptr_id
+             WHERE f.container_id = c.id AND f.state = 'complete')
+            +
+            (SELECT COUNT(mw.feature_ptr_id)
+             FROM dbo.module_container_mworkflow_mworkflow mw
+             INNER JOIN dbo.module_container_feature f ON f.id = mw.feature_ptr_id
+             WHERE f.container_id = c.id AND f.state = 'complete'
+             AND mw.workflow_id = '69f0c96a6ad82ade356a2f0c')
+            AS cnt
+        ) AS iv_agg
+        CROSS APPLY (
+          SELECT COUNT(cb.id) AS cnt
+          FROM dbo.module_container_callbackcall cb
+          WHERE cb.callback_type = 'session_opened'
+            AND cb.created >= c.created
+            AND cb.container_id = c.id
+        ) AS so_agg
+        CROSS APPLY (
+          SELECT ISNULL(
+            (SELECT TOP 1 [value]
+             FROM dbo.module_container_containermetadata
+             WHERE container_id = c.id AND [key] = 'requester_id'),
+            ''
+          ) AS val
+        ) AS rdi_agg
+        WHERE
+          c.created >= @periodStart
+          AND c.created < @periodEnd
+          AND c.callback_url <> ''
+        GROUP BY c.apikey_id
+      )
+      /* Outer query: all active stores matching the filter, LEFT JOIN to session totals.
+         Stores with no sessions in the period get ISNULL → 0 rather than being omitted. */
+      SELECT
+        ak.id                                   AS storeId,
+        ak.name                                 AS storeName,
+        ISNULL(sa.scans, 0)                     AS scans,
+        ISNULL(sa.pullFiles, 0)                 AS pullFiles,
+        ISNULL(sa.idVerify, 0)                  AS idVerify,
+        ISNULL(sa.dlCompleted, 0)               AS dlCompleted,
+        ISNULL(sa.sessionOpened, 0)             AS sessionOpened,
+        ISNULL(sa.employeeInitiated, 0)         AS employeeInitiated,
+        ISNULL(sa.customerSelfService, 0)       AS customerSelfService
+      FROM dbo.mod_api_key_apikey ak
+      LEFT JOIN session_agg sa ON sa.apikey_id = ak.id
+      WHERE ak.active = 1${extraWhere}
+      ORDER BY ISNULL(sa.scans, 0) DESC
     `;
 
     const result = await req.query<LiteRow>(queryText);
@@ -149,6 +174,8 @@ export class LiteMetricsProvider implements MetricsProvider {
       idVerify: row.idVerify ?? 0,
       dlCompleted: row.dlCompleted ?? 0,
       appts: 0,
+      employeeInitiated: row.employeeInitiated ?? 0,
+      customerSelfService: row.customerSelfService ?? 0,
     }));
   }
 }
