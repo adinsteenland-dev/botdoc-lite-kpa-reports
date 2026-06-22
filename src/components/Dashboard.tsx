@@ -217,10 +217,10 @@ export function Dashboard({
       <div style={{ padding: '24px 32px 8px' }}>
         <SectionEyebrow>Key Performance Indicators</SectionEyebrow>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <KpiCard label="Total Scans" value={formatKPI(totals.scans)} />
-          <KpiCard label="Leads Created" value={formatKPI(totals.leads)} />
+          <KpiCard label="Total Sessions" value={formatKPI(totals.scans)} />
+          <KpiCard label="Session Opened" value={formatKPI(totals.leads)} />
           <KpiCard label="ID Verified" value={formatKPI(totals.idVerify)} />
-          <KpiCard label="DL Captured" value={formatKPI(totals.dlCompleted)} />
+          <KpiCard label="DL Completed" value={formatKPI(totals.dlCompleted)} />
         </div>
       </div>
 
@@ -235,7 +235,7 @@ export function Dashboard({
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: color.navy }}>
-                {['Location', 'Scans', 'Leads', 'Pull Files', 'ID Verify', 'DL Captured'].map((h, i) => (
+                {['Location', 'Sessions', 'Session Opened', 'Pull Files', 'ID Verified', 'DL Completed'].map((h, i) => (
                   <th
                     key={h}
                     style={{
