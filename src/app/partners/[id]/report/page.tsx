@@ -153,7 +153,7 @@ export default async function PartnerReportPage({
                 Unable to load report data for {partner.name}.
               </p>
               <p style={{ fontSize: 13, margin: 0 }}>
-                Check that a Fabric data filter is configured and the LITE_FABRIC_VIEW env var is set.
+                Check that a Fabric data filter is configured for this partner.
               </p>
             </div>
           )}

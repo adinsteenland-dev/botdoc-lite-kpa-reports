@@ -78,28 +78,8 @@ export class LiteMetricsProvider implements MetricsProvider {
         ak.name                                                     AS storeName,
         COUNT(c.id)                                                 AS scans,
 
-        /* Pull Files — count of pulled files across all pull features per session */
-        SUM((
-          SELECT COUNT(pf.id)
-          FROM dbo.module_container_pull_pullfile pf
-          INNER JOIN dbo.module_container_pull_pull pp ON pf.pull_id = pp.feature_ptr_id
-          INNER JOIN dbo.module_container_feature mf ON pp.feature_ptr_id = mf.id
-          WHERE mf.container_id = c.id
-        ))                                                          AS pullFiles,
-
-        /* ID Verify — completed idverify + mworkflow (id_scan_verify workflow) */
-        SUM((
-          SELECT COUNT(iv.feature_ptr_id)
-          FROM dbo.module_container_idverify_service_idverify iv
-          INNER JOIN dbo.module_container_feature f ON f.id = iv.feature_ptr_id
-          WHERE f.container_id = c.id AND f.state = 'complete'
-        ) + (
-          SELECT COUNT(mw.feature_ptr_id)
-          FROM dbo.module_container_mworkflow_mworkflow mw
-          INNER JOIN dbo.module_container_feature f ON f.id = mw.feature_ptr_id
-          WHERE f.container_id = c.id AND f.state = 'complete'
-          AND mw.workflow_id = '69f0c96a6ad82ade356a2f0c'
-        ))                                                          AS idVerify,
+        SUM(pf_agg.cnt)                                             AS pullFiles,
+        SUM(iv_agg.cnt)                                             AS idVerify,
 
         /* DL Completed — sessions where container_state = 'complete'
            (onboarding callback URLs are classified as 'onboarding', not 'complete') */
@@ -111,14 +91,7 @@ export class LiteMetricsProvider implements MetricsProvider {
           END = 'complete'
         THEN 1 END)                                                 AS dlCompleted,
 
-        /* Session Opened — total session_opened callbacks (engagement signal, used as "leads") */
-        SUM((
-          SELECT COUNT(cb.id)
-          FROM dbo.module_container_callbackcall cb
-          WHERE cb.callback_type = 'session_opened'
-            AND cb.created >= c.created
-            AND cb.container_id = c.id
-        ))                                                          AS sessionOpened
+        SUM(so_agg.cnt)                                             AS sessionOpened
 
       FROM dbo.module_container_container c
       LEFT JOIN dbo.module_container_containermetadata cs
@@ -126,6 +99,37 @@ export class LiteMetricsProvider implements MetricsProvider {
         AND cs.[key] = 'state'
       INNER JOIN dbo.mod_api_key_apikey ak
         ON c.apikey_id = ak.id
+
+      /* CROSS APPLY: compute per-session counts as columns so SUM() can aggregate them.
+         SQL Server does not allow SUM(correlated subquery) directly. */
+      CROSS APPLY (
+        SELECT COUNT(pf.id) AS cnt
+        FROM dbo.module_container_pull_pullfile pf
+        INNER JOIN dbo.module_container_pull_pull pp ON pf.pull_id = pp.feature_ptr_id
+        INNER JOIN dbo.module_container_feature mf ON pp.feature_ptr_id = mf.id
+        WHERE mf.container_id = c.id
+      ) AS pf_agg
+      CROSS APPLY (
+        SELECT
+          (SELECT COUNT(iv.feature_ptr_id)
+           FROM dbo.module_container_idverify_service_idverify iv
+           INNER JOIN dbo.module_container_feature f ON f.id = iv.feature_ptr_id
+           WHERE f.container_id = c.id AND f.state = 'complete')
+          +
+          (SELECT COUNT(mw.feature_ptr_id)
+           FROM dbo.module_container_mworkflow_mworkflow mw
+           INNER JOIN dbo.module_container_feature f ON f.id = mw.feature_ptr_id
+           WHERE f.container_id = c.id AND f.state = 'complete'
+           AND mw.workflow_id = '69f0c96a6ad82ade356a2f0c')
+          AS cnt
+      ) AS iv_agg
+      CROSS APPLY (
+        SELECT COUNT(cb.id) AS cnt
+        FROM dbo.module_container_callbackcall cb
+        WHERE cb.callback_type = 'session_opened'
+          AND cb.created >= c.created
+          AND cb.container_id = c.id
+      ) AS so_agg
       WHERE
         c.created >= @periodStart
         AND c.created < @periodEnd
