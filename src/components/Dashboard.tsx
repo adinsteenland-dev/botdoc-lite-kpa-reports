@@ -33,15 +33,28 @@ export function Dashboard({
   const router = useRouter();
   const pathname = usePathname();
 
+  type SortField = 'onboardedEmployeeCount' | 'scans' | 'leads' | 'pullFiles' | 'employeeInitiated' | 'customerSelfService';
+
+  const SORT_OPTIONS: { label: string; value: SortField }[] = [
+    { label: 'Onboarded Employees', value: 'onboardedEmployeeCount' },
+    { label: 'Sessions Generated',  value: 'scans' },
+    { label: 'Sessions Opened',     value: 'leads' },
+    { label: 'Pull Files',          value: 'pullFiles' },
+    { label: 'Employee Init.',      value: 'employeeInitiated' },
+    { label: 'Self-Service',        value: 'customerSelfService' },
+  ];
+
   const [search, setSearch] = useState('');
   const [from, setFrom]     = useState(initialFrom ?? '');
   const [to, setTo]         = useState(initialTo ?? '');
   const [loading, setLoading] = useState(false);
   const [selectedStore, setSelectedStore] = useState<LocationData | null>(null);
+  const [sortField, setSortField] = useState<SortField>('onboardedEmployeeCount');
 
-  const filtered = data.locations.filter((loc) =>
-    loc.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = data.locations
+    .filter((loc) => loc.name.toLowerCase().includes(search.toLowerCase()))
+    .slice()
+    .sort((a, b) => b[sortField] - a[sortField]);
 
   const totals = sumLocations(filtered);
 
@@ -123,7 +136,7 @@ export function Dashboard({
           <h1 style={{ color: color.onDark, fontSize: 22, fontWeight: 700, letterSpacing: '0.02em', margin: 0 }}>
             KPA Usage Dashboard
           </h1>
-          <div style={{ color: color.muted, fontSize: 12, marginTop: 4, letterSpacing: '0.04em' }}>
+          <div style={{ color: color.orange, fontSize: 12, fontWeight: 700, marginTop: 6, letterSpacing: '0.04em', border: `1px solid ${color.orange}`, borderRadius: 6, padding: '3px 10px', display: 'inline-block' }}>
             Reporting Period: {data.period}
           </div>
         </div>
@@ -250,11 +263,40 @@ export function Dashboard({
       <div style={{ padding: '20px 32px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* TOP: Location Table */}
         <Card style={{ overflow: 'auto' }}>
-          <CardHeader title="Performance by Location" />
+          <CardHeader
+            title="Performance by Location"
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: color.subtext, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Sort by
+                </span>
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value as SortField)}
+                  style={{
+                    border: `1.5px solid ${color.border}`,
+                    borderRadius: 8,
+                    padding: '5px 10px',
+                    fontSize: 12,
+                    fontFamily: 'inherit',
+                    fontWeight: 600,
+                    color: color.navy,
+                    background: color.bg,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            }
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: color.navy }}>
-                {['Location', 'Sessions Generated', 'Session Opened', 'Pull Files', 'Employee Init.', 'Self-Service'].map((h, i) => (
+                {['Location', 'Onboarded Employees', 'Sessions Generated', 'Session Opened', 'Pull Files', 'Employee Init.', 'Self-Service'].map((h, i) => (
                   <th
                     key={h}
                     style={{
@@ -312,7 +354,7 @@ export function Dashboard({
                     </span>
                     {loc.name}
                   </td>
-                  {[loc.scans, loc.leads, loc.pullFiles, loc.employeeInitiated, loc.customerSelfService].map((val, j) => (
+                  {[loc.onboardedEmployeeCount, loc.scans, loc.leads, loc.pullFiles, loc.employeeInitiated, loc.customerSelfService].map((val, j) => (
                     <td
                       key={j}
                       style={{

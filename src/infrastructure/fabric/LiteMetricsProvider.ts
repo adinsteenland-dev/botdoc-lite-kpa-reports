@@ -33,6 +33,7 @@ interface LiteRow {
   sessionOpened: number;
   employeeInitiated: number;
   customerSelfService: number;
+  onboardedEmployeeCount: number;
 }
 
 export class LiteMetricsProvider implements MetricsProvider {
@@ -82,10 +83,16 @@ export class LiteMetricsProvider implements MetricsProvider {
       extraClauses.length > 0 ? '\n  AND ' + extraClauses.join('\n  AND ') : '';
 
     const queryText = `
+      /* CTE: total onboarded employees per store (all-time, not date-filtered) */
+      WITH emp_count AS (
+        SELECT apikey_id, COUNT(id) AS onboardedCount
+        FROM dbo.module_container_requester
+        GROUP BY apikey_id
+      ),
       /* CTE: aggregate all session metrics for the date window.
          Keeping this separate lets the outer query LEFT JOIN from stores → sessions,
          so stores with zero activity in the period still appear in results. */
-      WITH session_agg AS (
+      session_agg AS (
         SELECT
           c.apikey_id,
           COUNT(c.id)                                                 AS scans,
@@ -157,9 +164,11 @@ export class LiteMetricsProvider implements MetricsProvider {
         ISNULL(sa.dlCompleted, 0)               AS dlCompleted,
         ISNULL(sa.sessionOpened, 0)             AS sessionOpened,
         ISNULL(sa.employeeInitiated, 0)         AS employeeInitiated,
-        ISNULL(sa.customerSelfService, 0)       AS customerSelfService
+        ISNULL(sa.customerSelfService, 0)       AS customerSelfService,
+        ISNULL(ec.onboardedCount, 0)            AS onboardedEmployeeCount
       FROM dbo.mod_api_key_apikey ak
       LEFT JOIN session_agg sa ON sa.apikey_id = ak.id
+      LEFT JOIN emp_count ec ON ec.apikey_id = ak.id
       WHERE ak.active = 1${extraWhere}
       ORDER BY ISNULL(sa.scans, 0) DESC
     `;
@@ -177,6 +186,7 @@ export class LiteMetricsProvider implements MetricsProvider {
       appts: 0,
       employeeInitiated: row.employeeInitiated ?? 0,
       customerSelfService: row.customerSelfService ?? 0,
+      onboardedEmployeeCount: row.onboardedEmployeeCount ?? 0,
     }));
   }
 

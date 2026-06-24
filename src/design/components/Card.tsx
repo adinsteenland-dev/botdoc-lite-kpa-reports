@@ -30,7 +30,7 @@ export function Card({
 }
 
 /** Panel header with the orange accent bar (used above tables and charts). */
-export function CardHeader({ title }: { title: string }) {
+export function CardHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div
       style={{
@@ -49,10 +49,12 @@ export function CardHeader({ title }: { title: string }) {
           color: color.navy,
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
+          flex: 1,
         }}
       >
         {title}
       </div>
+      {action && <div>{action}</div>}
     </div>
   );
 }

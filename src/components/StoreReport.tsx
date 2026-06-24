@@ -14,6 +14,7 @@ import {
 } from '@/design';
 
 const METRICS: { label: string; key: keyof LocationData }[] = [
+  { label: 'Onboarded Employees',   key: 'onboardedEmployeeCount' },
   { label: 'Sessions Generated',    key: 'scans' },
   { label: 'Sessions Opened',       key: 'leads' },
   { label: 'Pull Files',            key: 'pullFiles' },
@@ -45,8 +46,17 @@ export function StoreReport({
   toParam: string;
   onBack: () => void;
 }) {
+  type EmpSortField = 'sessions' | 'pullFiles' | 'onboardedAt';
+
+  const EMP_SORT_OPTIONS: { label: string; value: EmpSortField }[] = [
+    { label: 'Sessions',       value: 'sessions' },
+    { label: 'Pull Files',     value: 'pullFiles' },
+    { label: 'Onboarded Date', value: 'onboardedAt' },
+  ];
+
   const [employees, setEmployees] = useState<StoreEmployee[] | null>(null);
   const [empError, setEmpError]   = useState<string | null>(null);
+  const [empSort, setEmpSort]     = useState<EmpSortField>('sessions');
 
   useEffect(() => {
     const params = new URLSearchParams({ storeId: store.storeId, from: fromParam, to: toParam });
@@ -114,7 +124,7 @@ export function StoreReport({
           <h1 style={{ color: color.onDark, fontSize: 22, fontWeight: 700, letterSpacing: '0.02em', margin: 0 }}>
             {store.name}
           </h1>
-          <div style={{ color: color.muted, fontSize: 12, marginTop: 4, letterSpacing: '0.04em' }}>
+          <div style={{ color: color.orange, fontSize: 12, fontWeight: 700, marginTop: 6, letterSpacing: '0.04em', border: `1px solid ${color.orange}`, borderRadius: 6, padding: '3px 10px', display: 'inline-block' }}>
             Reporting Period: {period}
           </div>
         </div>
@@ -157,7 +167,7 @@ export function StoreReport({
       {/* KPI CARDS */}
       <div style={{ padding: '28px 32px 8px' }}>
         <SectionEyebrow>Store Performance</SectionEyebrow>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
           {METRICS.map(({ label, key }) => (
             <KpiCard
               key={key}
@@ -171,7 +181,36 @@ export function StoreReport({
       {/* EMPLOYEE TABLE */}
       <div style={{ padding: '20px 32px 32px' }}>
         <Card style={{ overflow: 'auto' }}>
-          <CardHeader title="Employee Usage" />
+          <CardHeader
+            title="Employee Usage"
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: color.subtext, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Sort by
+                </span>
+                <select
+                  value={empSort}
+                  onChange={(e) => setEmpSort(e.target.value as EmpSortField)}
+                  style={{
+                    border: `1.5px solid ${color.border}`,
+                    borderRadius: 8,
+                    padding: '5px 10px',
+                    fontSize: 12,
+                    fontFamily: 'inherit',
+                    fontWeight: 600,
+                    color: color.navy,
+                    background: color.bg,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {EMP_SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            }
+          />
 
           {employees === null && !empError && (
             <div style={{ padding: '24px 16px', color: color.muted, fontSize: 13 }}>
@@ -191,7 +230,14 @@ export function StoreReport({
             </div>
           )}
 
-          {employees && employees.length > 0 && (
+          {employees && employees.length > 0 && (() => {
+            const sorted = employees.slice().sort((a, b) => {
+              if (empSort === 'onboardedAt') {
+                return new Date(b.onboardedAt!).getTime() - new Date(a.onboardedAt!).getTime();
+              }
+              return b[empSort] - a[empSort];
+            });
+            return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: color.navy }}>
@@ -221,7 +267,7 @@ export function StoreReport({
                 </tr>
               </thead>
               <tbody>
-                {employees.map((emp, i) => (
+                {sorted.map((emp, i) => (
                   <tr
                     key={emp.employeeId}
                     style={{ background: i % 2 === 0 ? color.surface : color.bg }}
@@ -248,7 +294,8 @@ export function StoreReport({
                 ))}
               </tbody>
             </table>
-          )}
+            );
+          })()}
         </Card>
       </div>
     </div>
