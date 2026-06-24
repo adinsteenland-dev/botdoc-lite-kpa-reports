@@ -1,4 +1,5 @@
 export interface LocationData {
+  storeId: string;
   name: string;
   scans: number;
   leads: number;
@@ -9,6 +10,16 @@ export interface LocationData {
   employeeInitiated: number;
   customerSelfService: number;
   avgCarsSold?: number; // avg cars sold/month — used for usage score calculation
+}
+
+export interface StoreEmployee {
+  employeeId: string;
+  employeeName: string;
+  email: string | null;
+  mobile: string | null;
+  onboardedAt: string | null; // ISO date string
+  sessions: number;
+  pullFiles: number;
 }
 
 // Usage score: DL captures vs expected showroom ups (avgCarsSold * 1.5)

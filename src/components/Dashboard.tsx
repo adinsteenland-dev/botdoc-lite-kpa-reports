@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { formatKPI, sumLocations } from '@/lib/parseCSV';
-import type { ReportData, TrendData } from '@/lib/parseCSV';
+import type { ReportData, TrendData, LocationData } from '@/lib/parseCSV';
 import { TrendsSection } from './TrendsSection';
+import { StoreReport } from './StoreReport';
 import {
   color,
   font,
@@ -18,11 +19,13 @@ import {
 
 export function Dashboard({
   data,
+  partnerId,
   initialFrom,
   initialTo,
   trendData,
 }: {
   data: ReportData;
+  partnerId: string;
   initialFrom?: string;
   initialTo?: string;
   trendData?: TrendData;
@@ -34,6 +37,7 @@ export function Dashboard({
   const [from, setFrom]     = useState(initialFrom ?? '');
   const [to, setTo]         = useState(initialTo ?? '');
   const [loading, setLoading] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<LocationData | null>(null);
 
   const filtered = data.locations.filter((loc) =>
     loc.name.toLowerCase().includes(search.toLowerCase()),
@@ -45,6 +49,21 @@ export function Dashboard({
     if (!from || !to) return;
     setLoading(true);
     router.push(`${pathname}?from=${from}&to=${to}`);
+  }
+
+  if (selectedStore) {
+    return (
+      <StoreReport
+        store={selectedStore}
+        partnerId={partnerId}
+        period={data.period}
+        partnerName={data.customerName}
+        logoBase64={data.logoBase64}
+        fromParam={from}
+        toParam={to}
+        onBack={() => setSelectedStore(null)}
+      />
+    );
   }
 
   return (
@@ -257,10 +276,14 @@ export function Dashboard({
               {filtered.map((loc, i) => (
                 <tr
                   key={`${i}-${loc.name}`}
+                  onClick={() => setSelectedStore(loc)}
                   style={{
                     background: i % 2 === 0 ? color.surface : color.bg,
                     borderLeft: i === 0 ? `4px solid ${color.orange}` : undefined,
+                    cursor: 'pointer',
                   }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = color.fillSubtle; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = i % 2 === 0 ? color.surface : color.bg; }}
                 >
                   <td
                     style={{

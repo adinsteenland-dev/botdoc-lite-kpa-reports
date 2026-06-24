@@ -20,7 +20,7 @@ import sql from 'mssql';
 import { getPool } from './client';
 import type { MetricsProvider } from '@/domain/metrics/MetricsProvider';
 import type { DataFilter } from '@/domain/partner/Partner';
-import type { LocationData } from '@/lib/parseCSV';
+import type { LocationData, StoreEmployee } from '@/lib/parseCSV';
 import { cleanStoreName } from '@/lib/parseCSV';
 
 interface LiteRow {
@@ -167,6 +167,7 @@ export class LiteMetricsProvider implements MetricsProvider {
     const result = await req.query<LiteRow>(queryText);
 
     return result.recordset.map((row) => ({
+      storeId: row.storeId,
       name: cleanStoreName(row.storeName),
       scans: row.scans ?? 0,
       leads: row.sessionOpened ?? 0,
@@ -176,6 +177,90 @@ export class LiteMetricsProvider implements MetricsProvider {
       appts: 0,
       employeeInitiated: row.employeeInitiated ?? 0,
       customerSelfService: row.customerSelfService ?? 0,
+    }));
+  }
+
+  async fetchStoreEmployees(
+    storeId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<StoreEmployee[]> {
+    const pool = await getPool();
+    const req = pool.request();
+
+    req.input('storeId',      sql.NVarChar(64), storeId);
+    req.input('periodStart',  sql.DateTime,     periodStart);
+    req.input('periodEnd',    sql.DateTime,     periodEnd);
+
+    const queryText = `
+      /* Source of truth for employee profiles: module_container_requester, scoped to store.
+         Session counts come from containermetadata (requester_id key), since
+         module_container_requestercontainer is not used for KPA stores. */
+      WITH employees AS (
+        SELECT
+          r.id          AS requesterId,
+          CONCAT(r.first_name, ' ', r.last_name) AS employeeName,
+          r.email,
+          r.mobile,
+          r.created     AS onboardedAt
+        FROM dbo.module_container_requester r
+        WHERE r.apikey_id = @storeId
+      ),
+      /* Sessions in the reporting period attributed to each employee via requester_id metadata */
+      period_usage AS (
+        SELECT
+          TRY_CAST(cm.value AS INT) AS requesterId,
+          COUNT(c.id)               AS sessions,
+          SUM(pf_agg.cnt)           AS pullFiles
+        FROM dbo.module_container_container c
+        INNER JOIN dbo.module_container_containermetadata cm
+          ON cm.container_id = c.id AND cm.[key] = 'requester_id'
+        CROSS APPLY (
+          SELECT COUNT(pf.id) AS cnt
+          FROM dbo.module_container_pull_pullfile pf
+          INNER JOIN dbo.module_container_pull_pull pp ON pf.pull_id = pp.feature_ptr_id
+          INNER JOIN dbo.module_container_feature mf ON pp.feature_ptr_id = mf.id
+          WHERE mf.container_id = c.id
+        ) AS pf_agg
+        WHERE c.apikey_id = @storeId
+          AND cm.value <> ''
+          AND c.created >= @periodStart
+          AND c.created < @periodEnd
+        GROUP BY TRY_CAST(cm.value AS INT)
+      )
+      SELECT
+        e.requesterId    AS employeeId,
+        e.employeeName,
+        e.email,
+        e.mobile,
+        e.onboardedAt,
+        ISNULL(pu.sessions,  0) AS sessions,
+        ISNULL(pu.pullFiles, 0) AS pullFiles
+      FROM employees e
+      LEFT JOIN period_usage pu ON pu.requesterId = e.requesterId
+      ORDER BY e.onboardedAt DESC
+    `;
+
+    interface EmployeeRow {
+      employeeId: number;
+      employeeName: string;
+      email: string | null;
+      mobile: string | null;
+      onboardedAt: Date | null;
+      sessions: number;
+      pullFiles: number;
+    }
+
+    const result = await req.query<EmployeeRow>(queryText);
+
+    return result.recordset.map((row) => ({
+      employeeId:   String(row.employeeId),
+      employeeName: row.employeeName,
+      email:        row.email ?? null,
+      mobile:       row.mobile ?? null,
+      onboardedAt:  row.onboardedAt ? row.onboardedAt.toISOString() : null,
+      sessions:     row.sessions ?? 0,
+      pullFiles:    row.pullFiles ?? 0,
     }));
   }
 }

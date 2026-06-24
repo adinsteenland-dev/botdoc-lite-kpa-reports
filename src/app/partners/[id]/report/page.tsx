@@ -136,6 +136,7 @@ export default async function PartnerReportPage({
             <Dashboard
               key={`${fromStr}-${toStr}`}
               data={reportData}
+              partnerId={id}
               initialFrom={fromStr}
               initialTo={toStr}
               trendData={trendData}
