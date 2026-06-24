@@ -6,7 +6,6 @@ export interface LocationData {
   pullFiles: number;
   idVerify: number;
   dlCompleted: number;
-  appts: number;
   employeeInitiated: number;
   customerSelfService: number;
   onboardedEmployeeCount: number;
@@ -156,11 +155,10 @@ export function sumLocations(locations: LocationData[]) {
       pullFiles:              acc.pullFiles + loc.pullFiles,
       idVerify:               acc.idVerify + loc.idVerify,
       dlCompleted:            acc.dlCompleted + loc.dlCompleted,
-      appts:                  acc.appts + loc.appts,
       employeeInitiated:      acc.employeeInitiated + loc.employeeInitiated,
       customerSelfService:    acc.customerSelfService + loc.customerSelfService,
       onboardedEmployeeCount: acc.onboardedEmployeeCount + loc.onboardedEmployeeCount,
     }),
-    { scans: 0, leads: 0, pullFiles: 0, idVerify: 0, dlCompleted: 0, appts: 0, employeeInitiated: 0, customerSelfService: 0, onboardedEmployeeCount: 0 }
+    { scans: 0, leads: 0, pullFiles: 0, idVerify: 0, dlCompleted: 0, employeeInitiated: 0, customerSelfService: 0, onboardedEmployeeCount: 0 }
   );
 }

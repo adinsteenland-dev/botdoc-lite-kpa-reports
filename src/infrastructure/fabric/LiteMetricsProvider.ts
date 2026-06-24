@@ -12,7 +12,6 @@
  *   pullFiles    → SUM of pull file counts per session
  *   idVerify     → SUM of ID verify completions per session
  *   dlCompleted  → COUNT of sessions where container_state = 'complete'
- *   appts        → 0 (no appointments concept in Lite data)
  *
  * All filter values use mssql named parameters — never string concatenation.
  */
@@ -183,7 +182,6 @@ export class LiteMetricsProvider implements MetricsProvider {
       pullFiles: row.pullFiles ?? 0,
       idVerify: row.idVerify ?? 0,
       dlCompleted: row.dlCompleted ?? 0,
-      appts: 0,
       employeeInitiated: row.employeeInitiated ?? 0,
       customerSelfService: row.customerSelfService ?? 0,
       onboardedEmployeeCount: row.onboardedEmployeeCount ?? 0,

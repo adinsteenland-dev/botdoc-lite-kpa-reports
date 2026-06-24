@@ -58,6 +58,13 @@ export function StoreReport({
   const [empError, setEmpError]   = useState<string | null>(null);
   const [empSort, setEmpSort]     = useState<EmpSortField>('sessions');
 
+  const sortedEmployees = employees ? employees.slice().sort((a, b) => {
+    if (empSort === 'onboardedAt') {
+      return new Date(b.onboardedAt!).getTime() - new Date(a.onboardedAt!).getTime();
+    }
+    return b[empSort] - a[empSort];
+  }) : [];
+
   useEffect(() => {
     const params = new URLSearchParams({ storeId: store.storeId, from: fromParam, to: toParam });
     fetch(`/api/partners/${partnerId}/employees?${params}`)
@@ -230,14 +237,7 @@ export function StoreReport({
             </div>
           )}
 
-          {employees && employees.length > 0 && (() => {
-            const sorted = employees.slice().sort((a, b) => {
-              if (empSort === 'onboardedAt') {
-                return new Date(b.onboardedAt!).getTime() - new Date(a.onboardedAt!).getTime();
-              }
-              return b[empSort] - a[empSort];
-            });
-            return (
+          {employees && employees.length > 0 && (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: color.navy }}>
@@ -267,7 +267,7 @@ export function StoreReport({
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((emp, i) => (
+                {sortedEmployees.map((emp, i) => (
                   <tr
                     key={emp.employeeId}
                     style={{ background: i % 2 === 0 ? color.surface : color.bg }}
@@ -294,8 +294,7 @@ export function StoreReport({
                 ))}
               </tbody>
             </table>
-            );
-          })()}
+          )}
         </Card>
       </div>
     </div>
