@@ -152,24 +152,35 @@ export class LiteMetricsProvider implements MetricsProvider {
           AND c.callback_url <> ''
         GROUP BY c.apikey_id
       )
-      /* Outer query: all active stores matching the filter, LEFT JOIN to session totals.
-         Stores with no sessions in the period get ISNULL → 0 rather than being omitted. */
-      SELECT
-        ak.id                                   AS storeId,
-        ak.name                                 AS storeName,
-        ISNULL(sa.scans, 0)                     AS scans,
-        ISNULL(sa.pullFiles, 0)                 AS pullFiles,
-        ISNULL(sa.idVerify, 0)                  AS idVerify,
-        ISNULL(sa.dlCompleted, 0)               AS dlCompleted,
-        ISNULL(sa.sessionOpened, 0)             AS sessionOpened,
-        ISNULL(sa.employeeInitiated, 0)         AS employeeInitiated,
-        ISNULL(sa.customerSelfService, 0)       AS customerSelfService,
-        ISNULL(ec.onboardedCount, 0)            AS onboardedEmployeeCount
-      FROM dbo.mod_api_key_apikey ak
-      LEFT JOIN session_agg sa ON sa.apikey_id = ak.id
-      LEFT JOIN emp_count ec ON ec.apikey_id = ak.id
-      WHERE ak.active = 1${extraWhere}
-      ORDER BY ISNULL(sa.scans, 0) DESC
+      /* Ranked: deduplicate stores with multiple active UUIDs (same name) by picking
+         the UUID with the most sessions. Ties broken by UUID for determinism. */
+      ranked AS (
+        SELECT
+          ak.id                                   AS storeId,
+          ak.name                                 AS storeName,
+          ISNULL(sa.scans, 0)                     AS scans,
+          ISNULL(sa.pullFiles, 0)                 AS pullFiles,
+          ISNULL(sa.idVerify, 0)                  AS idVerify,
+          ISNULL(sa.dlCompleted, 0)               AS dlCompleted,
+          ISNULL(sa.sessionOpened, 0)             AS sessionOpened,
+          ISNULL(sa.employeeInitiated, 0)         AS employeeInitiated,
+          ISNULL(sa.customerSelfService, 0)       AS customerSelfService,
+          ISNULL(ec.onboardedCount, 0)            AS onboardedEmployeeCount,
+          ROW_NUMBER() OVER (
+            PARTITION BY ak.name
+            ORDER BY ISNULL(sa.scans, 0) DESC, ak.id
+          ) AS rn
+        FROM dbo.mod_api_key_apikey ak
+        LEFT JOIN session_agg sa ON sa.apikey_id = ak.id
+        LEFT JOIN emp_count ec ON ec.apikey_id = ak.id
+        WHERE ak.active = 1${extraWhere}
+      )
+      /* Final select: one row per unique store name, ordered by session volume. */
+      SELECT storeId, storeName, scans, pullFiles, idVerify, dlCompleted,
+             sessionOpened, employeeInitiated, customerSelfService, onboardedEmployeeCount
+      FROM ranked
+      WHERE rn = 1
+      ORDER BY scans DESC
     `;
 
     const result = await req.query<LiteRow>(queryText);
