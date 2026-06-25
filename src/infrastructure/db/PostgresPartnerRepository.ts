@@ -10,7 +10,9 @@ function rowToPartner(row: typeof partners.$inferSelect): Partner {
     name: row.name,
     logo: row.logo ?? null,
     logoMimeType: row.logoMimeType ?? null,
-    dataFilter: (row.dataFilter as Partner['dataFilter']) ?? null,
+    dataFilter: (typeof row.dataFilter === 'string'
+      ? JSON.parse(row.dataFilter)
+      : row.dataFilter) as Partner['dataFilter'] ?? null,
     defaultTimezone: row.defaultTimezone ?? null,
     createdAt: row.createdAt,
   };

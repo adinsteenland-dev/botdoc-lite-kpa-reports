@@ -70,11 +70,9 @@ export default async function PartnerReportPage({
 
       try {
         const windows = trendWindows();
-        const [t0, t1, t2] = await Promise.all([
-          fabric.fetchMetrics(partner.dataFilter, windows[0].start, windows[0].end),
-          fabric.fetchMetrics(partner.dataFilter, windows[1].start, windows[1].end),
-          fabric.fetchMetrics(partner.dataFilter, windows[2].start, windows[2].end),
-        ]);
+        const t0 = await fabric.fetchMetrics(partner.dataFilter, windows[0].start, windows[0].end);
+        const t1 = await fabric.fetchMetrics(partner.dataFilter, windows[1].start, windows[1].end);
+        const t2 = await fabric.fetchMetrics(partner.dataFilter, windows[2].start, windows[2].end);
 
         const sumWindow = (rows: typeof rawMetrics): TrendMetrics =>
           rows.reduce(

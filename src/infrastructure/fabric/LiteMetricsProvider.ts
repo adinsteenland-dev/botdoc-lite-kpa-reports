@@ -151,7 +151,7 @@ export class LiteMetricsProvider implements MetricsProvider {
           AND c.created < @periodEnd
           AND c.callback_url <> ''
         GROUP BY c.apikey_id
-      )
+      ),
       /* Ranked: deduplicate stores with multiple active UUIDs (same name) by picking
          the UUID with the most sessions. Ties broken by UUID for determinism. */
       ranked AS (
