@@ -243,7 +243,6 @@ export function StoreReport({
                 <tr style={{ background: color.navy }}>
                   {[
                     { label: 'Employee',       align: 'left'   },
-                    { label: 'Email',          align: 'left'   },
                     { label: 'Phone',          align: 'left'   },
                     { label: 'Onboarded Date', align: 'center' },
                     { label: 'Sessions',       align: 'right'  },
@@ -276,10 +275,7 @@ export function StoreReport({
                       {emp.employeeName}
                     </td>
                     <td style={{ padding: '10px 14px', color: color.subtext, borderBottom: `1px solid ${color.fillSubtle}`, fontSize: 12 }}>
-                      {emp.email ?? '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: color.subtext, borderBottom: `1px solid ${color.fillSubtle}`, fontSize: 12 }}>
-                      {emp.mobile ?? '—'}
+                      {emp.mobile ? `••• ${emp.mobile.replace(/\D/g, '').slice(-4)}` : '—'}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'center', borderBottom: `1px solid ${color.fillSubtle}`, color: color.subtext }}>
                       {fmtDate(emp.onboardedAt)}
