@@ -201,28 +201,46 @@ export class LiteMetricsProvider implements MetricsProvider {
     req.input('periodEnd',    sql.DateTime,     periodEnd);
 
     const queryText = `
-      /* Source of truth for employee profiles: module_container_requester, scoped to store.
-         Session counts come from containermetadata (requester_id key), since
-         module_container_requestercontainer is not used for KPA stores. */
-      WITH employees AS (
+      /* Deduplicate requesters by (first_name, last_name): if a person was re-onboarded,
+         keep the most-recent row as canonical and merge their session history. */
+      WITH all_requesters AS (
         SELECT
-          r.id          AS requesterId,
-          CONCAT(r.first_name, ' ', r.last_name) AS employeeName,
+          r.id,
+          r.first_name,
+          r.last_name,
           r.email,
           r.mobile,
-          r.created     AS onboardedAt
+          r.created,
+          FIRST_VALUE(r.id) OVER (
+            PARTITION BY r.first_name, r.last_name
+            ORDER BY r.created DESC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+          ) AS canonicalId
         FROM dbo.module_container_requester r
         WHERE r.apikey_id = @storeId
       ),
-      /* Sessions in the reporting period attributed to each employee via requester_id metadata */
+      /* One row per unique employee (canonical row = most recently onboarded) */
+      employees AS (
+        SELECT
+          canonicalId AS requesterId,
+          CONCAT(first_name, ' ', last_name) AS employeeName,
+          MAX(CASE WHEN id = canonicalId THEN email   ELSE NULL END) AS email,
+          MAX(CASE WHEN id = canonicalId THEN mobile  ELSE NULL END) AS mobile,
+          MAX(CASE WHEN id = canonicalId THEN created ELSE NULL END) AS onboardedAt
+        FROM all_requesters
+        GROUP BY canonicalId, first_name, last_name
+      ),
+      /* Sessions attributed to any of a person's requester IDs, rolled up to canonical */
       period_usage AS (
         SELECT
-          TRY_CAST(cm.value AS INT) AS requesterId,
+          ar.canonicalId            AS requesterId,
           COUNT(c.id)               AS sessions,
           SUM(pf_agg.cnt)           AS pullFiles
         FROM dbo.module_container_container c
         INNER JOIN dbo.module_container_containermetadata cm
           ON cm.container_id = c.id AND cm.[key] = 'requester_id'
+        INNER JOIN all_requesters ar
+          ON ar.id = TRY_CAST(cm.value AS INT)
         CROSS APPLY (
           SELECT COUNT(pf.id) AS cnt
           FROM dbo.module_container_pull_pullfile pf
@@ -234,7 +252,7 @@ export class LiteMetricsProvider implements MetricsProvider {
           AND cm.value <> ''
           AND c.created >= @periodStart
           AND c.created < @periodEnd
-        GROUP BY TRY_CAST(cm.value AS INT)
+        GROUP BY ar.canonicalId
       )
       SELECT
         e.requesterId    AS employeeId,
