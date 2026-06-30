@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { color, font, radius } from '@/design';
 
-export interface SidebarCustomer {
+export interface SidebarPartner {
   id: string;
   name: string;
   logoMimeType: string | null;
@@ -19,10 +19,10 @@ function initials(name: string): string {
 }
 
 export function Sidebar({
-  customers,
+  partners,
   currentId,
 }: {
-  customers: SidebarCustomer[];
+  partners: SidebarPartner[];
   currentId: string;
 }) {
   return (
@@ -51,16 +51,16 @@ export function Sidebar({
           fontFamily: font.sans,
         }}
       >
-        Dealership Groups
+        Partners
       </div>
 
-      {customers.map((c) => {
-        const isActive = c.id === currentId;
+      {partners.map((p) => {
+        const isActive = p.id === currentId;
         const logoSrc =
-          c.logo && c.logoMimeType ? `data:${c.logoMimeType};base64,${c.logo}` : null;
+          p.logo && p.logoMimeType ? `data:${p.logoMimeType};base64,${p.logo}` : null;
 
         return (
-          <Link key={c.id} href={`/customers/${c.id}/report`} style={{ textDecoration: 'none' }}>
+          <Link key={p.id} href={`/partners/${p.id}/report`} style={{ textDecoration: 'none' }}>
             <div
               style={{
                 display: 'flex',
@@ -97,7 +97,7 @@ export function Sidebar({
                   />
                 ) : (
                   <span style={{ fontSize: 10, fontWeight: 700, color: color.onDark }}>
-                    {initials(c.name)}
+                    {initials(p.name)}
                   </span>
                 )}
               </div>
@@ -111,7 +111,7 @@ export function Sidebar({
                   fontFamily: font.sans,
                 }}
               >
-                {c.name}
+                {p.name}
               </span>
             </div>
           </Link>

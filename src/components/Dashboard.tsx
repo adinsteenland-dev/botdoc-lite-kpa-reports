@@ -1,156 +1,60 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart } from './BarChart';
-import { formatKPI, sumLocations, getUsageScore, getScoreColor } from '@/lib/parseCSV';
-import type { ReportData, LocationData, TrendData, HealthScoreData, RequestorData } from '@/lib/parseCSV';
+import { formatKPI, sumLocations } from '@/lib/parseCSV';
+import type { ReportData, TrendData, LocationData } from '@/lib/parseCSV';
 import { TrendsSection } from './TrendsSection';
-import { StoreHealthScore } from './StoreHealthScore';
-import { CustomerVsEmployeePie } from './CustomerVsEmployeePie';
-import { EmployeeUsageChart } from './EmployeeUsageChart';
-import { EngagementToolsPie } from './EngagementToolsPie';
+import { StoreReport } from './StoreReport';
 import {
   color,
   font,
-  status,
-  type StatusVariant,
   Card,
   CardHeader,
   CardEyebrow,
   SectionEyebrow,
   KpiCard,
-  Badge,
   BrandMark,
 } from '@/design';
-import { InfoPopover } from './InfoPopover';
-
-const USAGE_SCORE_INFO = (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-      How Usage Score is Calculated
-    </div>
-    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.6 }}>
-      <strong>DL Captured ÷ (Avg Monthly Cars Sold × 1.5) × 100</strong>
-    </div>
-    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.6 }}>
-      The 1.5× multiplier accounts for showroom ups — customers who visit but don&apos;t purchase. More car sales means more ID scan opportunities.
-    </div>
-    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.6 }}>
-      <span style={{ color: '#16A34A', fontWeight: 700 }}>≥80%</span> Excellent &nbsp;
-      <span style={{ color: '#D97706', fontWeight: 700 }}>≥70%</span> Good &nbsp;
-      <span style={{ color: '#DC2626', fontWeight: 700 }}>&lt;70%</span> Needs Attention
-    </div>
-  </div>
-);
-
-// Map the score color returned by the domain layer to a design-system status variant.
-const SCORE_VARIANT: Record<'green' | 'yellow' | 'red', StatusVariant> = {
-  green: 'strong',
-  yellow: 'moderate',
-  red: 'low',
-};
-
-function UsageScoreCard({
-  locations,
-  groupAvgCars,
-}: {
-  locations: LocationData[];
-  groupAvgCars?: number;
-}) {
-  // Group mode: single score using group avg cars and total DL captured.
-  if (groupAvgCars && groupAvgCars > 0) {
-    const totalDl = locations.reduce((sum, l) => sum + l.dlCompleted, 0);
-    const score = (totalDl / (groupAvgCars * 1.5)) * 100;
-    const variant = SCORE_VARIANT[getScoreColor(score)];
-    const s = status[variant];
-    return (
-      <Card padding="16px 14px 14px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <CardEyebrow>Usage Score</CardEyebrow>
-          <InfoPopover>{USAGE_SCORE_INFO}</InfoPopover>
-        </div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: s.text, lineHeight: 1, letterSpacing: '-0.02em' }}>
-          {score.toFixed(0)}%
-        </div>
-        <Badge variant={variant} dot>
-          {s.label}
-        </Badge>
-      </Card>
-    );
-  }
-
-  // Store mode: score for the single location using its own avgCarsSold.
-  const scored = locations.filter((l) => l.avgCarsSold && l.avgCarsSold > 0);
-  if (scored.length === 0) {
-    return (
-      <Card padding="16px 14px 14px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <CardEyebrow>Usage Score</CardEyebrow>
-          <InfoPopover>{USAGE_SCORE_INFO}</InfoPopover>
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: color.muted }}>—</div>
-        <Badge variant="neutral" italic>No Sales Data</Badge>
-      </Card>
-    );
-  }
-
-  const loc = scored[0];
-  const score = getUsageScore(loc)!;
-  const variant = SCORE_VARIANT[getScoreColor(score)];
-  const s = status[variant];
-
-  return (
-    <Card padding="16px 14px 14px" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <CardEyebrow>Usage Score</CardEyebrow>
-        <InfoPopover>{USAGE_SCORE_INFO}</InfoPopover>
-      </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: s.text, lineHeight: 1, letterSpacing: '-0.02em' }}>
-        {score.toFixed(0)}%
-      </div>
-      <Badge variant={variant} dot>
-        {s.label}
-      </Badge>
-    </Card>
-  );
-}
-
 
 export function Dashboard({
   data,
-  storeBasePath,
-  tokenSuffix,
+  partnerId,
   initialFrom,
   initialTo,
-  groupAvgCars,
   trendData,
-  healthScore,
-  requestorData,
 }: {
   data: ReportData;
-  storeBasePath?: string;
-  /** Appended to every store link — used to forward a scoped token in restricted mode. */
-  tokenSuffix?: string;
+  partnerId: string;
   initialFrom?: string;
   initialTo?: string;
-  groupAvgCars?: number;
   trendData?: TrendData;
-  healthScore?: HealthScoreData;
-  requestorData?: RequestorData;
 }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [search, setSearch]   = useState('');
-  const [from, setFrom]       = useState(initialFrom ?? '');
-  const [to, setTo]           = useState(initialTo ?? '');
-  const [loading, setLoading] = useState(false);
+  type SortField = 'onboardedEmployeeCount' | 'scans' | 'leads' | 'pullFiles' | 'employeeInitiated' | 'customerSelfService';
 
-  const filtered = storeBasePath
-    ? data.locations.filter((loc) => loc.name.toLowerCase().includes(search.toLowerCase()))
-    : data.locations;
+  const SORT_OPTIONS: { label: string; value: SortField }[] = [
+    { label: 'Onboarded Employees', value: 'onboardedEmployeeCount' },
+    { label: 'Sessions Generated',  value: 'scans' },
+    { label: 'Sessions Opened',     value: 'leads' },
+    { label: 'Pull Files',          value: 'pullFiles' },
+    { label: 'Employee Init.',      value: 'employeeInitiated' },
+    { label: 'Self-Service',        value: 'customerSelfService' },
+  ];
+
+  const [search, setSearch] = useState('');
+  const [from, setFrom]     = useState(initialFrom ?? '');
+  const [to, setTo]         = useState(initialTo ?? '');
+  const [loading, setLoading] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<LocationData | null>(null);
+  const [sortField, setSortField] = useState<SortField>('onboardedEmployeeCount');
+
+  const filtered = data.locations
+    .filter((loc) => loc.name.toLowerCase().includes(search.toLowerCase()))
+    .slice()
+    .sort((a, b) => b[sortField] - a[sortField]);
 
   const totals = sumLocations(filtered);
 
@@ -158,6 +62,21 @@ export function Dashboard({
     if (!from || !to) return;
     setLoading(true);
     router.push(`${pathname}?from=${from}&to=${to}`);
+  }
+
+  if (selectedStore) {
+    return (
+      <StoreReport
+        store={selectedStore}
+        partnerId={partnerId}
+        period={data.period}
+        partnerName={data.customerName}
+        logoBase64={data.logoBase64}
+        fromParam={from}
+        toParam={to}
+        onBack={() => setSelectedStore(null)}
+      />
+    );
   }
 
   return (
@@ -173,7 +92,7 @@ export function Dashboard({
           gap: 24,
         }}
       >
-        {/* Customer logo / name */}
+        {/* Partner logo / name */}
         <div style={{ minWidth: 160, display: 'flex', alignItems: 'center' }}>
           {data.logoBase64 ? (
             <div
@@ -205,9 +124,7 @@ export function Dashboard({
               >
                 {data.customerName}
               </div>
-              <div
-                style={{ color: color.muted, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
-              >
+              <div style={{ color: color.muted, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Powered by Botdoc
               </div>
             </div>
@@ -217,9 +134,9 @@ export function Dashboard({
         {/* Title */}
         <div style={{ textAlign: 'center', flex: 1 }}>
           <h1 style={{ color: color.onDark, fontSize: 22, fontWeight: 700, letterSpacing: '0.02em', margin: 0 }}>
-            Dealership Usage Dashboard
+            KPA Usage Dashboard
           </h1>
-          <div style={{ color: color.muted, fontSize: 12, marginTop: 4, letterSpacing: '0.04em' }}>
+          <div style={{ color: color.orange, fontSize: 12, fontWeight: 700, marginTop: 6, letterSpacing: '0.04em', border: `1px solid ${color.orange}`, borderRadius: 6, padding: '3px 10px', display: 'inline-block' }}>
             Reporting Period: {data.period}
           </div>
         </div>
@@ -255,26 +172,23 @@ export function Dashboard({
           Filter by
         </span>
 
-        {/* Location search — group report only */}
-        {storeBasePath && (
-          <input
-            type="text"
-            placeholder="Search locations…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              border: `1.5px solid ${color.border}`,
-              borderRadius: 8,
-              padding: '7px 14px',
-              fontSize: 13,
-              color: color.navy,
-              fontFamily: 'inherit',
-              minWidth: 180,
-              outline: 'none',
-              background: color.bg,
-            }}
-          />
-        )}
+        <input
+          type="text"
+          placeholder="Search locations…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            border: `1.5px solid ${color.border}`,
+            borderRadius: 8,
+            padding: '7px 14px',
+            fontSize: 13,
+            color: color.navy,
+            fontFamily: 'inherit',
+            minWidth: 180,
+            outline: 'none',
+            background: color.bg,
+          }}
+        />
 
         {/* Date range */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -333,135 +247,140 @@ export function Dashboard({
       {/* ZONE 2: KPI CARDS */}
       <div style={{ padding: '24px 32px 8px' }}>
         <SectionEyebrow>Key Performance Indicators</SectionEyebrow>
-        <div style={{ display: 'grid', gridTemplateColumns: healthScore ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
-          <KpiCard label="Total Scans" value={formatKPI(totals.scans)} />
-          <KpiCard label="Leads Created" value={formatKPI(totals.leads)} />
-          <KpiCard label="ID Verified" value={formatKPI(totals.idVerify)} />
-          <KpiCard label="DL Captured" value={formatKPI(totals.dlCompleted)} />
-          {healthScore && <UsageScoreCard locations={filtered} groupAvgCars={groupAvgCars} />}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+          <KpiCard label="Sessions Generated" value={formatKPI(totals.scans)} />
+          <KpiCard label="Session Opened" value={formatKPI(totals.leads)} />
+          <KpiCard label="Pull Files" value={formatKPI(totals.pullFiles)} />
+          <KpiCard label="Employee Initiated" value={formatKPI(totals.employeeInitiated)} />
+          <KpiCard label="Customer Self-Service" value={formatKPI(totals.customerSelfService)} />
         </div>
       </div>
 
       {/* ZONE 3: TRENDS */}
       {trendData && <TrendsSection trendData={trendData} />}
 
-      {/* ZONE 4: store mode = pie + employee charts | group mode = table + bar chart */}
-      {healthScore ? (
-        /* STORE MODE: two pies side-by-side (top) + employee usage chart (bottom) + health score (right) */
-        <div style={{ padding: '20px 32px 32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: 20 }}>
-          {/* LEFT: pies row (top) + employee usage chart (bottom) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, breakInside: 'avoid' }}>
-              <CustomerVsEmployeePie data={requestorData} />
-              <EngagementToolsPie data={requestorData?.engagementTools} />
-            </div>
-            <EmployeeUsageChart data={requestorData} />
-          </div>
-          {/* RIGHT: Health Score card (unchanged) */}
-          <StoreHealthScore healthScore={healthScore} />
-        </div>
-      ) : (
-        /* GROUP MODE: unchanged table + bar chart */
-        <div style={{ padding: '20px 32px 32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: 20 }}>
-          {/* LEFT: Location Table */}
-          <Card style={{ overflow: 'hidden' }}>
-            <CardHeader title="Performance by Location" />
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: color.navy }}>
-                  {['Location', 'Scans', 'Leads', 'Pull Files', 'ID Verify', 'DL Completed'].map((h, i) => (
-                    <th
-                      key={h}
-                      style={{
-                        color: color.onDark,
-                        fontWeight: 600,
-                        fontSize: 11,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        padding: '10px 14px',
-                        textAlign: i === 0 ? 'left' : 'right',
-                      }}
-                    >
-                      {h}
-                    </th>
+      {/* ZONE 4: Location table + bar chart */}
+      <div style={{ padding: '20px 32px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* TOP: Location Table */}
+        <Card style={{ overflow: 'auto' }}>
+          <CardHeader
+            title="Performance by Location"
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: color.subtext, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Sort by
+                </span>
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value as SortField)}
+                  style={{
+                    border: `1.5px solid ${color.border}`,
+                    borderRadius: 8,
+                    padding: '5px 10px',
+                    fontSize: 12,
+                    fontFamily: 'inherit',
+                    fontWeight: 600,
+                    color: color.navy,
+                    background: color.bg,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((loc, i) => (
-                  <tr
-                    key={loc.name}
+                </select>
+              </div>
+            }
+          />
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: color.navy }}>
+                {['Location', 'Onboarded Employees', 'Sessions Generated', 'Session Opened', 'Pull Files', 'Employee Init.', 'Self-Service'].map((h, i) => (
+                  <th
+                    key={h}
                     style={{
-                      background: i % 2 === 0 ? color.surface : color.bg,
-                      borderLeft: i === 0 ? `4px solid ${color.orange}` : undefined,
+                      color: color.onDark,
+                      fontWeight: 600,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      padding: '10px 14px',
+                      textAlign: i === 0 ? 'left' : 'right',
                     }}
                   >
-                    <td
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((loc, i) => (
+                <tr
+                  key={`${i}-${loc.name}`}
+                  onClick={() => setSelectedStore(loc)}
+                  style={{
+                    background: i % 2 === 0 ? color.surface : color.bg,
+                    borderLeft: i === 0 ? `4px solid ${color.orange}` : undefined,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = color.fillSubtle; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = i % 2 === 0 ? color.surface : color.bg; }}
+                >
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      fontWeight: 600,
+                      color: color.navy,
+                      borderBottom: `1px solid ${color.fillSubtle}`,
+                    }}
+                  >
+                    <span
                       style={{
-                        padding: '10px 14px',
-                        fontWeight: 600,
-                        color: color.navy,
-                        borderBottom: `1px solid ${color.fillSubtle}`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        marginRight: 8,
+                        background: i === 0 ? color.orange : color.fillSubtle,
+                        color: i === 0 ? color.onDark : color.subtext,
                       }}
                     >
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 20,
-                          height: 20,
-                          borderRadius: '50%',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          marginRight: 8,
-                          background: i === 0 ? color.orange : color.fillSubtle,
-                          color: i === 0 ? color.onDark : color.subtext,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      {storeBasePath ? (
-                        <Link
-                          href={`${storeBasePath}/${encodeURIComponent(loc.name)}${tokenSuffix ?? ''}`}
-                          style={{
-                            color: color.navy,
-                            textDecoration: 'none',
-                            borderBottom: `1px dashed ${color.muted}`,
-                          }}
-                        >
-                          {loc.name}
-                        </Link>
-                      ) : (
-                        loc.name
-                      )}
+                      {i + 1}
+                    </span>
+                    {loc.name}
+                  </td>
+                  {[loc.onboardedEmployeeCount, loc.scans, loc.leads, loc.pullFiles, loc.employeeInitiated, loc.customerSelfService].map((val, j) => (
+                    <td
+                      key={j}
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: 'right',
+                        borderBottom: `1px solid ${color.fillSubtle}`,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {val}
                     </td>
-                    {[loc.scans, loc.leads, loc.pullFiles, loc.idVerify, loc.dlCompleted].map((val, j) => (
-                      <td
-                        key={j}
-                        style={{
-                          padding: '10px 14px',
-                          textAlign: 'right',
-                          borderBottom: `1px solid ${color.fillSubtle}`,
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {val}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
 
-          {/* RIGHT: Bar Chart */}
-          <Card style={{ overflow: 'hidden' }}>
-            <CardHeader title="Scans by Location" />
-            <BarChart locations={filtered} />
-          </Card>
-        </div>
-      )}
+      </div>
+
+      {/* Eyebrow label shown under KPI section as context */}
+      <div style={{ padding: '0 32px 16px' }}>
+        <CardEyebrow>
+          Botdoc Lite — KPA Partnership
+        </CardEyebrow>
+      </div>
     </div>
   );
 }

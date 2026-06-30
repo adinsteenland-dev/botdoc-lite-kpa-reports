@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { color, font, radius, shadow, Button, TextInput } from '@/design';
-import { addCustomer, deleteCustomer } from '@/app/(connect)/actions';
+import { addPartner, deletePartner } from '@/app/actions';
 
-export interface DashboardCustomer {
+export interface DashboardPartner {
   id: string;
   name: string;
   logoSrc: string | null;
@@ -20,7 +20,7 @@ function initials(name: string): string {
     .join('');
 }
 
-export function DashboardGrid({ customers }: { customers: DashboardCustomer[] }) {
+export function DashboardGrid({ partners }: { partners: DashboardPartner[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [newName, setNewName] = useState('');
@@ -34,11 +34,11 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
     }
     startTransition(async () => {
       try {
-        await addCustomer(newName.trim());
+        await addPartner(newName.trim());
         setNewName('');
         router.refresh();
       } catch (err) {
-        setAddError(err instanceof Error ? err.message : 'Failed to add group.');
+        setAddError(err instanceof Error ? err.message : 'Failed to add partner.');
       }
     });
   }
@@ -46,14 +46,14 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
   function handleDelete(id: string, name: string) {
     if (!confirm(`Remove "${name}" from the dashboard? This cannot be undone.`)) return;
     startTransition(async () => {
-      await deleteCustomer(id);
+      await deletePartner(id);
       router.refresh();
     });
   }
 
   return (
     <div>
-      {/* Add group form */}
+      {/* Add partner form */}
       <div
         style={{
           display: 'flex',
@@ -67,19 +67,19 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
           <TextInput
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Dealership group name…"
+            placeholder="Partner name…"
           />
           {addError && (
             <p style={{ fontSize: 12, color: color.danger, margin: '4px 0 0' }}>{addError}</p>
           )}
         </div>
         <Button variant="primary" onClick={handleAdd} disabled={isPending}>
-          {isPending ? 'Adding…' : '+ Add Group'}
+          {isPending ? 'Adding…' : '+ Add Partner'}
         </Button>
       </div>
 
       {/* Card grid */}
-      {customers.length === 0 ? (
+      {partners.length === 0 ? (
         <div
           style={{
             textAlign: 'center',
@@ -89,7 +89,7 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
             fontFamily: font.sans,
           }}
         >
-          No dealership groups yet. Add one above.
+          No partners yet. Add one above.
         </div>
       ) : (
         <div
@@ -99,9 +99,9 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
             gap: 16,
           }}
         >
-          {customers.map((c) => (
-            <div key={c.id} style={{ position: 'relative' }}>
-              <Link href={`/customers/${c.id}/report`} style={{ textDecoration: 'none' }}>
+          {partners.map((p) => (
+            <div key={p.id} style={{ position: 'relative' }}>
+              <Link href={`/partners/${p.id}/report`} style={{ textDecoration: 'none' }}>
                 <div
                   style={{
                     background: color.surface,
@@ -130,10 +130,10 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
                       overflow: 'hidden',
                     }}
                   >
-                    {c.logoSrc ? (
+                    {p.logoSrc ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={c.logoSrc}
+                        src={p.logoSrc}
                         alt=""
                         style={{ width: 40, height: 40, objectFit: 'contain' }}
                       />
@@ -146,7 +146,7 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
                           letterSpacing: '-0.02em',
                         }}
                       >
-                        {initials(c.name)}
+                        {initials(p.name)}
                       </span>
                     )}
                   </div>
@@ -163,7 +163,7 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {c.name}
+                      {p.name}
                     </div>
                     <div style={{ fontSize: 12, color: color.subtext, marginTop: 3 }}>
                       View report →
@@ -172,11 +172,11 @@ export function DashboardGrid({ customers }: { customers: DashboardCustomer[] })
                 </div>
               </Link>
 
-              {/* Remove button — outside the Link so click doesn't navigate */}
+              {/* Remove button */}
               <button
-                onClick={() => handleDelete(c.id, c.name)}
+                onClick={() => handleDelete(p.id, p.name)}
                 disabled={isPending}
-                title={`Remove ${c.name}`}
+                title={`Remove ${p.name}`}
                 style={{
                   position: 'absolute',
                   top: 12,

@@ -1,15 +1,14 @@
 export interface LocationData {
-  storeId?: string;                    // Lite-only
+  storeId: string;
   name: string;
   scans: number;
   leads: number;
   pullFiles: number;
   idVerify: number;
   dlCompleted: number;
-  appts?: number;                      // Connect-only
-  employeeInitiated?: number;          // Lite-only
-  customerSelfService?: number;        // Lite-only
-  onboardedEmployeeCount?: number;     // Lite-only
+  employeeInitiated: number;
+  customerSelfService: number;
+  onboardedEmployeeCount: number;
   avgCarsSold?: number; // avg cars sold/month — used for usage score calculation
 }
 
@@ -156,11 +155,10 @@ export function sumLocations(locations: LocationData[]) {
       pullFiles:              acc.pullFiles + loc.pullFiles,
       idVerify:               acc.idVerify + loc.idVerify,
       dlCompleted:            acc.dlCompleted + loc.dlCompleted,
-      appts:                  acc.appts + (loc.appts ?? 0),
-      employeeInitiated:      acc.employeeInitiated + (loc.employeeInitiated ?? 0),
-      customerSelfService:    acc.customerSelfService + (loc.customerSelfService ?? 0),
-      onboardedEmployeeCount: acc.onboardedEmployeeCount + (loc.onboardedEmployeeCount ?? 0),
+      employeeInitiated:      acc.employeeInitiated + loc.employeeInitiated,
+      customerSelfService:    acc.customerSelfService + loc.customerSelfService,
+      onboardedEmployeeCount: acc.onboardedEmployeeCount + loc.onboardedEmployeeCount,
     }),
-    { scans: 0, leads: 0, pullFiles: 0, idVerify: 0, dlCompleted: 0, appts: 0, employeeInitiated: 0, customerSelfService: 0, onboardedEmployeeCount: 0 }
+    { scans: 0, leads: 0, pullFiles: 0, idVerify: 0, dlCompleted: 0, employeeInitiated: 0, customerSelfService: 0, onboardedEmployeeCount: 0 }
   );
 }

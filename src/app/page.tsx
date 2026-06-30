@@ -1,21 +1,20 @@
-import { PostgresCustomerRepository } from '@/infrastructure/db/PostgresCustomerRepository';
+import { PostgresPartnerRepository } from '@/infrastructure/db/PostgresPartnerRepository';
 import { color, font, BrandMark, Button } from '@/design';
-import Link from 'next/link';
 import { DashboardGrid } from './DashboardGrid';
-import { logout } from '@/app/login/actions';
+import { logout } from './login/actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const repo = new PostgresCustomerRepository();
-  const customers = await repo.findAll();
+  const repo = new PostgresPartnerRepository();
+  const partners = await repo.findAll();
 
-  const serialized = customers.map((c) => ({
-    id: c.id,
-    name: c.name,
+  const serialized = partners.map((p) => ({
+    id: p.id,
+    name: p.name,
     logoSrc:
-      c.logo && c.logoMimeType
-        ? `data:${c.logoMimeType};base64,${c.logo.toString('base64')}`
+      p.logo && p.logoMimeType
+        ? `data:${p.logoMimeType};base64,${p.logo.toString('base64')}`
         : null,
   }));
 
@@ -32,26 +31,21 @@ export default async function DashboardPage() {
         }}
       >
         <BrandMark size="sm" />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/emails" style={{ textDecoration: 'none' }}>
-            <Button variant="compact">Scheduled Emails</Button>
-          </Link>
-          <form action={logout}>
-            <Button variant="compact" type="submit">Sign Out</Button>
-          </form>
-        </div>
+        <form action={logout}>
+          <Button variant="compact" type="submit">Sign Out</Button>
+        </form>
       </div>
 
       {/* Content */}
       <div style={{ maxWidth: 960, margin: '48px auto', padding: '0 24px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: color.navy, margin: '0 0 4px' }}>
-          Dealership Groups
+          KPA Partners
         </h1>
         <p style={{ color: color.subtext, fontSize: 14, margin: '0 0 32px' }}>
-          Select a group to view their usage report.
+          Select a partner to view their usage report.
         </p>
 
-        <DashboardGrid customers={serialized} />
+        <DashboardGrid partners={serialized} />
       </div>
     </div>
   );

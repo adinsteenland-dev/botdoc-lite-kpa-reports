@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
-import { verifyReportToken } from '@/lib/reportToken';
 
 export const runtime = 'nodejs';
 
@@ -59,38 +58,9 @@ export function middleware(request: NextRequest) {
   // Always allow the login page through (GET)
   if (pathname.startsWith('/login')) return NextResponse.next();
 
-  // Cron routes authenticate via ADMIN_API_KEY Bearer token — bypass cookie auth
-  if (pathname.startsWith('/api/cron/')) return NextResponse.next();
-
-  // Token-gated report access for email recipients (no session required)
-  const isGroupReport = /^\/customers\/[^/]+\/report$/.test(pathname);
-  const isStoreReport = /^\/customers\/[^/]+\/stores\/[^/]+$/.test(pathname);
-  if (isGroupReport || isStoreReport) {
-    const urlToken = request.nextUrl.searchParams.get('token');
-    if (urlToken) {
-      const pathCustomerId = pathname.split('/')[2];
-      const tokenPayload = verifyReportToken(urlToken);
-      if (tokenPayload && tokenPayload.customerId === pathCustomerId) {
-        if (isGroupReport && tokenPayload.storeName !== null) {
-          return NextResponse.redirect(new URL('/login', request.url));
-        }
-        if (isStoreReport && tokenPayload.storeName !== null) {
-          const pathStoreName = decodeURIComponent(pathname.split('/')[4] ?? '');
-          if (pathStoreName !== tokenPayload.storeName) {
-            return NextResponse.redirect(new URL('/login', request.url));
-          }
-        }
-        const modifiedHeaders = new Headers(request.headers);
-        modifiedHeaders.set('x-report-restricted', '1');
-        modifiedHeaders.set('x-report-token-scope', tokenPayload.storeName === null ? 'group' : 'store');
-        return NextResponse.next({ request: { headers: modifiedHeaders } });
-      }
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-  }
-
   const token = request.cookies.get('auth_token')?.value;
   if (!token || token !== expectedToken()) {
+    // API routes should get a 401, not a redirect
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,9 +1,14 @@
 /**
- * Partner entity (Lite product) — pure domain type. No framework or DB imports allowed here.
+ * Partner entity — pure domain type. No framework or DB imports allowed here.
  */
-import type { DataFilter } from '@/domain/shared/DataFilter';
 
-export type { DataFilter };
+/** Filter definition used to build Fabric SQL WHERE clauses. */
+export interface DataFilter {
+  userIds?: number[];
+  storeIds?: string[];
+  titleIncludes?: string[];  // LIKE patterns — store name must match at least one
+  titleExcludes?: string[];  // LIKE patterns — store name must not match any
+}
 
 export interface Partner {
   id: string;

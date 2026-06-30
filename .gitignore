@@ -7,7 +7,6 @@
 
 # Production build
 /build
-/cron
 
 # Environment variables
 .env

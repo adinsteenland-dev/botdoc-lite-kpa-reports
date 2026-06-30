@@ -1,4 +1,4 @@
-import type { DataFilter } from '@/domain/shared/DataFilter';
+import type { DataFilter } from '@/domain/partner/Partner';
 import type { LocationData } from '@/lib/parseCSV';
 
 export interface MetricsProvider {
