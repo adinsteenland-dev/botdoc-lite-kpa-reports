@@ -2,11 +2,11 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PostgresPartnerRepository } from '@/infrastructure/db/PostgresPartnerRepository';
 import { LiteMetricsProvider } from '@/infrastructure/fabric/LiteMetricsProvider';
-import { Dashboard } from '@/components/Dashboard';
+import { Dashboard } from '@/components/LiteDashboard';
 import { color, font, Button } from '@/design';
 import type { ReportData, TrendData, TrendMetrics } from '@/lib/parseCSV';
 import { PrintButton } from './PrintButton';
-import { Sidebar } from '@/components/Sidebar';
+import { Sidebar } from '@/components/LiteSidebar';
 import { last30Days, fmtDate, toDateParam, trendWindows, calcTrendPct, parseDateParam } from '@/lib/reportUtils';
 
 export const dynamic = 'force-dynamic';
@@ -119,7 +119,7 @@ export default async function PartnerReportPage({
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <PrintButton />
-          <Link href="/" style={{ textDecoration: 'none' }}>
+          <Link href="/lite" style={{ textDecoration: 'none' }}>
             <Button variant="outline">Return To Dashboard</Button>
           </Link>
         </div>

@@ -66,7 +66,7 @@ export function StoreReport({
   }) : [];
 
   useEffect(() => {
-    const params = new URLSearchParams({ storeId: store.storeId, from: fromParam, to: toParam });
+    const params = new URLSearchParams({ storeId: store.storeId ?? '', from: fromParam, to: toParam });
     fetch(`/api/partners/${partnerId}/employees?${params}`)
       .then((r) => r.json())
       .then((data) => {

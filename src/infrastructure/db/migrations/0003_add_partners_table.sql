@@ -1,9 +1,6 @@
--- Initial schema for Botdoc Lite KPA Reports
+-- Add partners table for Botdoc Lite KPA Reports product
 
-CREATE SCHEMA IF NOT EXISTS botdoc;
---> statement-breakpoint
-
-CREATE TABLE "botdoc"."partners" (
+CREATE TABLE IF NOT EXISTS "botdoc"."partners" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "name" text NOT NULL,
   "logo" "bytea",

@@ -9,11 +9,11 @@ export async function addPartner(name: string): Promise<void> {
   if (trimmed.length > 200) throw new Error('Name must be 200 characters or fewer.');
   const repo = new PostgresPartnerRepository();
   await repo.save({ name: trimmed, logo: null, logoMimeType: null, dataFilter: null, defaultTimezone: null });
-  revalidatePath('/');
+  revalidatePath('/lite');
 }
 
 export async function deletePartner(id: string): Promise<void> {
   const repo = new PostgresPartnerRepository();
   await repo.delete(id);
-  revalidatePath('/');
+  revalidatePath('/lite');
 }

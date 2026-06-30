@@ -30,10 +30,19 @@ export function TrendsSection({ trendData }: { trendData: TrendData }) {
             <CardEyebrow>{win.label}</CardEyebrow>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 12, color: color.subtext, fontFamily: font.sans }}>Sessions Generated</span>
+                <span style={{ fontSize: 12, color: color.subtext, fontFamily: font.sans }}>Scans</span>
                 <span style={{ fontSize: 18, fontWeight: 800, color: color.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                   {win.metrics.scans.toLocaleString()}
                 </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 12, color: color.subtext, fontFamily: font.sans }}>DL Captured</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: color.navy, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+                    {win.metrics.dlCompleted.toLocaleString()}
+                  </span>
+                  <PctBadge pct={win.pctVsPrior} />
+                </div>
               </div>
             </div>
           </Card>

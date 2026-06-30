@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: send-scheduled-emails
+  namespace: botdoc-vibecoding
+spec:
+  schedule: "*/15 * * * *"   # every 15 minutes
+  concurrencyPolicy: Forbid   # skip if previous job still running
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: botdoc-connect-reports
+            cron: send-scheduled-emails
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: az-container-registry-secret
+          containers:
+            - name: send-emails
+              image: botdoccontainerregistry.azurecr.io/botdoc-connect-reports-v2:master
+              imagePullPolicy: Always
+              command: ["node", "cron/send-emails.js"]
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "0.1"
+                limits:
+                  memory: "256Mi"
+                  cpu: "0.3"
+              envFrom:
+                - secretRef:
+                    name: botdoc-connect-reports-secret
